@@ -25,6 +25,8 @@ public class Swipe : MonoBehaviour {
     private float startTime;
     private Vector2 touchMovement;
 
+    private Vector2 startPos;
+
     void Start()
     {
         Input.multiTouchEnabled = false;
@@ -43,6 +45,8 @@ public class Swipe : MonoBehaviour {
 
         if (touch.phase == TouchPhase.Began)
         {
+            startPos = touch.position;
+
             touchMovement = Vector2.zero;
             startTime = Time.time;
             DebugConsole.Clear();
@@ -50,9 +54,10 @@ public class Swipe : MonoBehaviour {
 
         DebugConsole.Log(touch.phase.ToString());
 
-        if (touch.phase == TouchPhase.Moved)
+        if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary)
         {
-            touchMovement += touch.deltaPosition;
+            touchMovement += touch.deltaPosition / touch.deltaTime;
+
             if (Time.time - startTime < swipeMaxTime && touchMovement.magnitude > minSwipeLenght)
             {                                         //Is the gesture short enough (in time and length) to be a swipe?               
                 _touchData.gestureType = "Swipe";                
@@ -61,7 +66,8 @@ public class Swipe : MonoBehaviour {
 
         if (touch.phase == TouchPhase.Ended)
         {
-            DebugConsole.Log("The Touch moved: " + touchMovement.magnitude + " pixels in " + (Time.time - startTime).ToString("F2") + " seconds");
+            float distance = Vector2.Distance(Camera.main.ScreenToViewportPoint(startPos), Camera.main.ScreenToViewportPoint(touch.position)) * 10;
+            DebugConsole.Log("The Touch moved: " + distance.ToString("F2") + " pixels in " + (Time.time - startTime).ToString("F2") + " seconds");
         }    
 
     }
