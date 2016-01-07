@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Runtime.InteropServices;
 
 public class Swipe : MonoBehaviour {
 
@@ -20,17 +21,28 @@ public class Swipe : MonoBehaviour {
 
     private TouchData _touchData;
 
-    private float swipeMaxTime = 0.1f;
-    private float minSwipeLenght = 25f;
+    private float swipeMaxTime = 0.05f;
+    private float minSwipeLength = 1f;
     private float startTime;
     private Vector2 touchMovement;
 
+    private int diagonalScreenSize;
+
+    private enum GestureState
+    {
+        Began, Active, Ended, None
+    }
+
+    private GestureState SwipeState = GestureState.None;
+
     private Vector2 startPos;
+    private Vector2 swipeStartPos;
 
     void Start()
     {
+        diagonalScreenSize = (int) Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
         Input.multiTouchEnabled = false;
-        DebugConsole.Log("Screen width: " + Screen.width + " Screen Height: " + Screen.height);
+        DebugConsole.Log("Screen width: " + Screen.width + " Screen Height: " + Screen.height + "Diagonal Screen Size = " + diagonalScreenSize);        
     }
 
     void Update()
@@ -52,24 +64,50 @@ public class Swipe : MonoBehaviour {
             DebugConsole.Clear();
         }
 
-        DebugConsole.Log(touch.phase.ToString());
+        //DebugConsole.Log(touch.phase.ToString());
 
         if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary)
-        {
-            touchMovement += touch.deltaPosition / touch.deltaTime;
+        {            
+            var distanceMeasuredInScreenSize = touch.deltaPosition/diagonalScreenSize;
+            if (touch.deltaTime == 0.0) return;
+            var speedMeasuredInScreenWidthsPerSecond = distanceMeasuredInScreenSize / touch.deltaTime;
 
-            if (Time.time - startTime < swipeMaxTime && touchMovement.magnitude > minSwipeLenght)
-            {                                         //Is the gesture short enough (in time and length) to be a swipe?               
-                _touchData.gestureType = "Swipe";                
+            //touchMovement += touch.deltaPosition;
+
+            if (speedMeasuredInScreenWidthsPerSecond.magnitude > .25f)
+            {
+                if (SwipeState == GestureState.None)
+                {
+                    swipeStartPos = Camera.main.ScreenToWorldPoint(touch.position);
+                    SwipeState = GestureState.Began;
+                }
+                else if (SwipeState == GestureState.Began)
+                    SwipeState = GestureState.Active;
+
+                DebugConsole.Log(SwipeState.ToString());
+
             }
-        }
+            else
+            {
+                if (SwipeState == GestureState.Active || SwipeState == GestureState.Began)
+                {
+                    SwipeState = GestureState.Ended;
+                    GLDebug.DrawLine(swipeStartPos, Camera.main.ScreenToWorldPoint(touch.position), Color.white, 3f);
+                }
+                else if (SwipeState == GestureState.Ended)
+                    SwipeState = GestureState.None;
+            }
+        }       
 
         if (touch.phase == TouchPhase.Ended)
-        {
-            float distance = Vector2.Distance(Camera.main.ScreenToViewportPoint(startPos), Camera.main.ScreenToViewportPoint(touch.position)) * 10;
-            DebugConsole.Log("The Touch moved: " + distance.ToString("F2") + " pixels in " + (Time.time - startTime).ToString("F2") + " seconds");
-        }    
+        {              
+            SwipeState = GestureState.None;                                    
 
+            float distance = Vector2.Distance(Camera.main.ScreenToViewportPoint(startPos), Camera.main.ScreenToViewportPoint(touch.position)) * 10;
+            DebugConsole.Log(SwipeState.ToString());
+            //DebugConsole.Log("The Touch moved: " + distance.ToString("F2") + " pixels in " + (Time.time - startTime).ToString("F2") + " seconds");
+        }
+        _touchData.gestureType = SwipeState == GestureState.None ? "" : "Swipe";
     }
 
     void OnGUI()
