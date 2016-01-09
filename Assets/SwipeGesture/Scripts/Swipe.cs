@@ -1,6 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
-using System.Runtime.InteropServices;
 
 public class Swipe : MonoBehaviour {
 
@@ -9,7 +7,6 @@ public class Swipe : MonoBehaviour {
         public readonly TouchPhase TouchPhase;
         public readonly int TapCount;
         public readonly Vector2 TouchPosition;
-        public string gestureType;
 
         public TouchData(Touch touch)
         {
@@ -21,98 +18,77 @@ public class Swipe : MonoBehaviour {
 
     private TouchData _touchData;
 
-    private float swipeMaxTime = 0.05f;
-    private float minSwipeLength = 1f;
-    private float startTime;
-    private Vector2 touchMovement;
-
-    private int diagonalScreenSize;
-
-    private enum GestureState
-    {
-        Began, Active, Ended, None
-    }
-
-    private GestureState SwipeState = GestureState.None;
-
-    private Vector2 startPos;
-    private Vector2 swipeStartPos;
+    private float _swipeSpeedThreshold = .50f;       //Speed measured in screen size per second 
+    private int _diagonalScreenSize;
+    private GameObject _swipeTrail;      
 
     void Start()
     {
-        diagonalScreenSize = (int) Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
-        Input.multiTouchEnabled = false;
-        DebugConsole.Log("Screen width: " + Screen.width + " Screen Height: " + Screen.height + "Diagonal Screen Size = " + diagonalScreenSize);        
+        _swipeTrail = Instantiate(Resources.Load("Trail") as GameObject);
+        if (_swipeTrail != null) _swipeTrail.SetActive(false);
+
+        _diagonalScreenSize = (int) Mathf.Sqrt(Screen.width * Screen.width + Screen.height * Screen.height);
+        Input.multiTouchEnabled = false;        
     }
 
     void Update()
     {
+        Debug.Log(_swipeTrail.transform.position);
         if (Input.touchCount < 1)
             return;
 
         Touch touch = Input.GetTouch(0);
+      
+        //Visial Debugging
+        Vector2 touchPos = Camera.main.ScreenToWorldPoint(touch.position);
+        Color circleColor = Color.white;        
 
         // Cache the touch data (for GUI).
-        _touchData = new TouchData(touch);
+        _touchData = new TouchData(touch);      
 
-        if (touch.phase == TouchPhase.Began)
-        {
-            startPos = touch.position;
-
-            touchMovement = Vector2.zero;
-            startTime = Time.time;
-            DebugConsole.Clear();
-        }
-
-        //DebugConsole.Log(touch.phase.ToString());
-
-        if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary)
-        {            
-            var distanceMeasuredInScreenSize = touch.deltaPosition/diagonalScreenSize;
-            if (touch.deltaTime == 0.0) return;
-            var speedMeasuredInScreenWidthsPerSecond = distanceMeasuredInScreenSize / touch.deltaTime;
-
-            //touchMovement += touch.deltaPosition;
-
-            if (speedMeasuredInScreenWidthsPerSecond.magnitude > .25f)
+        if (touch.phase == TouchPhase.Moved)
+        {      
+            
+            if (TouchSpeedIsSignificant(touch))
             {
-                if (SwipeState == GestureState.None)
-                {
-                    swipeStartPos = Camera.main.ScreenToWorldPoint(touch.position);
-                    SwipeState = GestureState.Began;
-                }
-                else if (SwipeState == GestureState.Began)
-                    SwipeState = GestureState.Active;
+                //Swipe gesture detected
+                if (!_swipeTrail.activeInHierarchy)
+                    _swipeTrail.SetActive(true);
+                _swipeTrail.transform.position = touchPos;
 
-                DebugConsole.Log(SwipeState.ToString());
+                circleColor = Color.red;
 
             }
-            else
-            {
-                if (SwipeState == GestureState.Active || SwipeState == GestureState.Began)
-                {
-                    SwipeState = GestureState.Ended;
-                    GLDebug.DrawLine(swipeStartPos, Camera.main.ScreenToWorldPoint(touch.position), Color.white, 3f);
-                }
-                else if (SwipeState == GestureState.Ended)
-                    SwipeState = GestureState.None;
-            }
-        }       
-
-        if (touch.phase == TouchPhase.Ended)
-        {              
-            SwipeState = GestureState.None;                                    
-
-            float distance = Vector2.Distance(Camera.main.ScreenToViewportPoint(startPos), Camera.main.ScreenToViewportPoint(touch.position)) * 10;
-            DebugConsole.Log(SwipeState.ToString());
-            //DebugConsole.Log("The Touch moved: " + distance.ToString("F2") + " pixels in " + (Time.time - startTime).ToString("F2") + " seconds");
         }
-        _touchData.gestureType = SwipeState == GestureState.None ? "" : "Swipe";
+        GLDebug.DrawCircle(touchPos, .3f, circleColor, 2f);
+    }
+
+    private bool TouchSpeedIsSignificant(Touch touch)
+    {
+        if (touch.deltaTime == 0.0) return false;  //To avoid division by zero on the logic below
+
+        Vector2 distanceMeasuredInScreenSize = touch.deltaPosition/_diagonalScreenSize;        
+        Vector2 speedMeasuredInScreenSizePerSecond = distanceMeasuredInScreenSize/touch.deltaTime;
+
+        return speedMeasuredInScreenSizePerSecond.magnitude > _swipeSpeedThreshold;
     }
 
     void OnGUI()
     {
         DisplayTouchData();
+        DisplayOptions();
+    }
+
+    private void DisplayOptions()
+    {
+        GUILayout.BeginArea(new Rect(10, 10, (Screen.width * 0.5f) - 20, Screen.height * 0.35f));
+        GUILayout.BeginVertical();
+
+        _swipeSpeedThreshold = GUILayout.HorizontalSlider(_swipeSpeedThreshold, 0f, 3f);
+        GUILayout.Label("SwipeSpeedThreshold: " + _swipeSpeedThreshold.ToString("F2"));
+        
+        GUILayout.EndVertical();
+        GUILayout.EndArea();
     }
 
     private void DisplayTouchData()
@@ -120,7 +96,7 @@ public class Swipe : MonoBehaviour {
         if (_touchData == null)
             return;
 
-        string labelText = "Gesture: " + _touchData.gestureType + "\n" + _touchData.TouchPhase.ToString();
+        string labelText = "\n" + _touchData.TouchPhase;
 
         if (_touchData.TapCount > 1)
             labelText += "\nTaps: " + _touchData.TapCount;
