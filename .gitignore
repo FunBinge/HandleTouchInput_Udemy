@@ -70,3 +70,9 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+Assets/Plugins.meta
+
+Assets/Plugins/VSCode.cs
+
+Assets/Plugins/VSCode.cs.meta
