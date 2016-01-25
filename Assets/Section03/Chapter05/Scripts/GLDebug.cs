@@ -43,8 +43,8 @@ public class GLDebug : MonoBehaviour
 
     public KeyCode toggleKey;
     public bool displayLines = true;
-    public Shader shader1;
-    public Shader shader2;
+    //public Shader shader1;
+    //public Shader shader2;
 
 #if UNITY_EDITOR
     public bool displayGizmos = true;
@@ -72,12 +72,13 @@ public class GLDebug : MonoBehaviour
     void SetMaterial()
     {
         //Shader shader1 = Shader.Find("aDebug/GLlineZOn");
-        matZOn = new Material(shader1);
+        Shader shader1 = Resources.Load("Debug/GLlineZOn") as Shader;
+        matZOn = new Material (shader1);
         matZOn.hideFlags = HideFlags.None;              //EDIT: Changed all flags from HideAndDontSave to None (So that the shaders make it to the build)
         matZOn.shader.hideFlags = HideFlags.None;       //      Manually linked the shaders through inspector instead of using Shader.Find
 
-        //Shader shader2 = Shader.Find("aDebug/GLlineZOff");
-        matZOff = new Material(shader2);
+        Shader shader2 = Resources.Load("Debug/GLlineZOff") as Shader;
+        matZOff = new Material (shader2);
 
         matZOff.hideFlags = HideFlags.None;             
         matZOff.shader.hideFlags = HideFlags.None;
